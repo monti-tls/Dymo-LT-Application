@@ -17,6 +17,7 @@ public:
     ~MainWindow();
 
 private slots:
+    void M_requestBluetoothPermission();
     void M_dymoStateChanged(DymoLTBLEInterface::State state);
     void M_readDymoError();
 

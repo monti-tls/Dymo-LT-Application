@@ -3,6 +3,8 @@
 
 #include <QPixmap>
 #include <QPainter>
+#include <QBluetoothPermission>
+#include <QFontDatabase>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -11,14 +13,17 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     m_ui->setupUi(this);
 
+    m_ui->font_combo->addItems(QFontDatabase::families());
+    m_ui->font_combo->setCurrentText("Helvetica");
+
     connect(m_dymo, &DymoLTBLEInterface::stateChanged, this, &MainWindow::M_dymoStateChanged);
     connect(m_dymo, &DymoLTBLEInterface::errorOccured, this, &MainWindow::M_readDymoError);
 
-    auto draw = [](QString const& line1, QString const& line2 = QString()) -> QPixmap
+    auto draw = [this](QString const& line1, QString const& line2 = QString()) -> QPixmap
     {
-        QFont font("Helvetica");
-        font.setPixelSize(line2.isEmpty() ? 34 : 18);
-        font.setWeight(line2.isEmpty() ? QFont::DemiBold : QFont::Normal);
+        QFont font(m_ui->font_combo->currentText());
+        font.setPixelSize(line2.isEmpty() ? 36 : 18);
+        font.setWeight(line2.isEmpty() ? QFont::DemiBold : QFont::DemiBold);
         font.setStretch(line2.isEmpty() ? QFont::SemiCondensed : QFont::SemiExpanded);
 
         int width = qMax(QFontMetrics(font).tightBoundingRect(line1).width(),
@@ -34,11 +39,11 @@ MainWindow::MainWindow(QWidget *parent) :
         paint->setPen(Qt::black);
 
         if (line2.isEmpty())
-            paint->drawText(QRect(QPoint(0, 0), pix.size()), Qt::AlignHCenter| Qt::AlignVCenter, line1);
+            paint->drawText(QRect(QPoint(0, 4), pix.size()), Qt::AlignHCenter| Qt::AlignVCenter, line1);
         else
         {
-            paint->drawText(QRect(0, 0, pix.width(), pix.height()/2), Qt::AlignHCenter| Qt::AlignVCenter, line1);
-            paint->drawText(QRect(0, pix.height()/2, pix.width(), pix.height()/2), Qt::AlignHCenter| Qt::AlignVCenter, line2);
+            paint->drawText(QRect(0, 2, pix.width(), pix.height()/2), Qt::AlignHCenter| Qt::AlignVCenter, line1);
+            paint->drawText(QRect(0, 2+pix.height()/2, pix.width(), pix.height()/2), Qt::AlignHCenter| Qt::AlignVCenter, line2);
         }
         delete paint;
 
@@ -56,9 +61,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(m_ui->line1_edit, &QLineEdit::textChanged, this, update_label);
     connect(m_ui->line2_edit, &QLineEdit::textChanged, this, update_label);
+    connect(m_ui->font_combo, &QComboBox::currentIndexChanged, this, update_label);
 
-    connect(m_ui->line1_clear_button, &QAbstractButton::pressed, m_ui->line1_edit, &QLineEdit::clear);
-    connect(m_ui->line2_clear_button, &QAbstractButton::pressed, m_ui->line2_edit, &QLineEdit::clear);
+    connect(m_ui->clear_button, &QAbstractButton::pressed, m_ui->line1_edit, &QLineEdit::clear);
+    connect(m_ui->clear_button, &QAbstractButton::pressed, m_ui->line2_edit, &QLineEdit::clear);
 
     connect(m_ui->go_button, &QPushButton::pressed, this, [this]()
     {
@@ -73,10 +79,29 @@ MainWindow::MainWindow(QWidget *parent) :
     });
 
     update_label();
+
+    M_requestBluetoothPermission();
 }
 
 MainWindow::~MainWindow()
 {
+}
+
+void MainWindow::M_requestBluetoothPermission()
+{
+    QBluetoothPermission p;
+    switch (qApp->checkPermission(p))
+    {
+    case Qt::PermissionStatus::Undetermined:
+        qApp->requestPermission(p, this, &MainWindow::M_requestBluetoothPermission);
+
+    case Qt::PermissionStatus::Denied:
+        qApp->quit();
+        break;
+
+    case Qt::PermissionStatus::Granted:
+        break;
+    }
 }
 
 void MainWindow::M_dymoStateChanged(DymoLTBLEInterface::State state)
