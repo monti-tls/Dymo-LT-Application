@@ -25,7 +25,8 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
-ios {
+# "mac" means both "macx" and "ios"
+mac {
     QMAKE_INFO_PLIST = Info.plist
-    QMAKE_ASSET_CATALOGS += Media.xcassets
+    QMAKE_ASSET_CATALOGS += $$PWD/Media.xcassets
 }
